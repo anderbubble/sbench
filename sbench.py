@@ -26,6 +26,7 @@ def main ():
     parser.add_argument('--account')
     parser.add_argument('--chdir')
     parser.add_argument('--time')
+    parser.add_argument('--bcast', nargs='?', const=True)
     parser.add_argument('executable')
     parser.add_argument('executable_arguments', nargs='*')
     args = parser.parse_args()
@@ -82,7 +83,7 @@ def get_partition_nodes (partition):
 
 
 def srun (executable, executable_arguments, partition=None, nodelist=None, ntasks=None,
-          account=None, chdir=None, time=None, srun_='/usr/bin/srun'):
+          account=None, chdir=None, time=None, bcast=None, srun_='/usr/bin/srun'):
     args = [srun_]
     if partition:
         args.extend(('--partition', partition))
@@ -96,6 +97,10 @@ def srun (executable, executable_arguments, partition=None, nodelist=None, ntask
         args.extend(('--chdir', chdir))
     if time:
         args.extend(('--time', time))
+    if bcast is True:
+        args.append('--bcast')
+    elif bcast:
+        args.append('--bcast={0}'.format(bcast))
     args.append(executable)
     return subprocess.Popen(args, stdout=subprocess.PIPE)
 
