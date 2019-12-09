@@ -39,14 +39,14 @@ def main ():
     jobs = [srun(args.executable, args.executable_arguments,
                  partition=args.partition, nodelist=node,
                  ntasks=args.ntasks, account=args.account,
-                 chdir=args.chdir, time=args.time) for node in nodes]
+                 chdir=args.chdir, time=args.time, bcast=args.bcast)
+            for node in nodes]
 
     completed_jobs = set()
     new_completed_jobs = set()
-    while completed_jobs != set(jobs):
-        for job in jobs:
-            job.poll()
+    while True:
         for node, job in zip(nodes, jobs):
+            job.poll()
             if job.returncode is not None and job not in completed_jobs:
                 new_completed_jobs.add(job)
                 print(job.returncode, node, job.stdout.read().strip())
@@ -54,7 +54,11 @@ def main ():
             completed_jobs |= new_completed_jobs
             new_completed_jobs = set()
             logging.debug('completed: {0}/{1}'.format(len(completed_jobs), len(jobs)))
-        time.sleep(POLLING_INTERVAL)
+        if completed_jobs == set(jobs):
+            break
+        else:
+            time.sleep(POLLING_INTERVAL)
+            continue
 
 
 def get_all_nodes (states=None):
