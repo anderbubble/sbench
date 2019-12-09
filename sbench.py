@@ -51,9 +51,9 @@ def main ():
                 new_completed_jobs.add(job)
                 print(job.returncode, node, job.stdout.read().strip())
         if new_completed_jobs:
-            logging.debug('completed: {0}/{1}'.format(len(completed_jobs), len(jobs)))
             completed_jobs |= new_completed_jobs
             new_completed_jobs = set()
+            logging.debug('completed: {0}/{1}'.format(len(completed_jobs), len(jobs)))
         time.sleep(POLLING_INTERVAL)
 
 
