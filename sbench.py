@@ -16,10 +16,15 @@ NODES_P = re.compile(r' Nodes=([^ \n]+)')
 
 POLLING_INTERVAL=2
 
+NAGIOS_OK = 0
+NAGIOS_WARNING = 1
+NAGIOS_CRITICAL = 2
+NAGIOS_UNKNOWN = 3
+
 
 def main ():
-    logging.basicConfig(level=logging.DEBUG)
     parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', action='store_true')
     parser.add_argument('--partition')
     parser.add_argument('--ntasks')
     parser.add_argument('--state', action='append')
@@ -27,9 +32,16 @@ def main ():
     parser.add_argument('--chdir')
     parser.add_argument('--time')
     parser.add_argument('--bcast', nargs='?', const=True)
+    parser.add_argument('--exclusive', action='store_true')
     parser.add_argument('executable')
     parser.add_argument('executable_arguments', nargs='*')
     args = parser.parse_args()
+
+    if args.debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+    logging.basicConfig(level=log_level)
 
     nodes = set(get_all_nodes(states=args.state))
     if args.partition:
@@ -40,26 +52,51 @@ def main ():
     jobs = [srun(args.executable, args.executable_arguments,
                  partition=args.partition, nodelist=node,
                  ntasks=args.ntasks, account=args.account,
-                 chdir=args.chdir, time=args.time, bcast=args.bcast)
-            for node in nodes]
+                 chdir=args.chdir, time=args.time, bcast=args.bcast,
+                 exclusive=args.exclusive) for node in nodes]
 
     completed_jobs = set()
     new_completed_jobs = set()
+    ok = set()
+    warning = set()
+    critical = set()
+    unknown = set()
     while True:
         for node, job in zip(nodes, jobs):
             job.poll()
             if job.returncode is not None and job not in completed_jobs:
                 new_completed_jobs.add(job)
-                print(job.returncode, node, job.stdout.read().strip())
+                if job.returncode == NAGIOS_OK:
+                    ok.add(node)
+                elif job.returncode == NAGIOS_WARNING:
+                    warning.add(node)
+                elif job.returncode == NAGIOS_CRITICAL:
+                    critical.add(node)
+                else:
+                    unknown.add(node)
         if new_completed_jobs:
+            for job in new_completed_jobs:
+                for line in job.stderr:
+                    logging.debug(line.rstrip())
+                for line in job.stdout:
+                    logging.debug(line.rstrip())
+                    break
             completed_jobs |= new_completed_jobs
             new_completed_jobs = set()
-            logging.debug('completed: {0}/{1}'.format(len(completed_jobs), len(jobs)))
         if completed_jobs == set(jobs):
             break
         else:
             time.sleep(POLLING_INTERVAL)
             continue
+
+    if ok:
+        print('ok:', hostlist.collect_hostlist(ok))
+    if warning:
+        print('warning:', hostlist.collect_hostlist(warning))
+    if critical:
+        print('critical:', hostlist.collect_hostlist(critical))
+    if unknown:
+        print('unknown:', hostlist.collect_hostlist(unknown))
 
 
 def get_all_nodes (states=None):
@@ -83,7 +120,7 @@ def get_partition_nodes (partition):
 
 
 def srun (executable, executable_arguments, partition=None, nodelist=None, ntasks=None,
-          account=None, chdir=None, time=None, bcast=None, srun_='/usr/bin/srun'):
+          account=None, chdir=None, time=None, bcast=None, exclusive=None, srun_='/usr/bin/srun'):
     args = [srun_]
     if partition:
         args.extend(('--partition', partition))
@@ -101,8 +138,11 @@ def srun (executable, executable_arguments, partition=None, nodelist=None, ntask
         args.append('--bcast')
     elif bcast:
         args.append('--bcast={0}'.format(bcast))
+    elif exclusive:
+        args.append('--exclusive')
     args.append(executable)
-    return subprocess.Popen(args, stdout=subprocess.PIPE)
+    args.extend(executable_arguments)
+    return subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
 def scontrol (command, scontrol_='/usr/bin/scontrol'):
