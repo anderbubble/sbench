@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-
-# https://www.netlib.org/benchmark/hpl/software.html
-# https://www.netlib.org/benchmark/hpl/tuning.html
+#
+# https://software.intel.com/en-us/mkl-linux-developer-guide-intel-optimized-linpack-benchmark-for-linux
 
 
 from __future__ import print_function
@@ -12,6 +11,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 
 
 NAGIOS_OK = 0
@@ -20,22 +20,44 @@ NAGIOS_CRITICAL = 2
 NAGIOS_UNKNOWN = 3
 
 
-SUMMARY_P = re.compile(r'^([0-9]+) +([0-9]+) +([0-9]+) +([0-9\.]+) +([0-9\.]+)$')
+SUMMARY_P = re.compile(r'^([0-9]+) +([0-9]+) +([0-9]+) +([0-9\.]+) +([0-9\.]+) *$')
 RESIDUAL_CHECKS_P = re.compile(r'^Residual checks (.*)$')
+
+
+HPL_DAT_TEMPLATE = """Intel(R) Optimized LINPACK Benchmark datafile
+
+1 # number of tests
+{problem_size} # number of equations (problem sizes)
+{leading_dimension} # leading dimensions
+{trials} # number of times to run a test (trials)
+{alignment} # alignment values (in KBytes)
+"""
 
 
 def main ():
     parser = argparse.ArgumentParser()
     parser.add_argument('hpl_args', nargs='+')
+    parser.add_argument('--problem-size', type=int, default=1000)
+    parser.add_argument('--leading-dimension', type=int, default=1000)
+    parser.add_argument('--trials', type=int, default=4)
+    parser.add_argument('--alignment', type=int, metavar='KBytes', default=4)
     parser.add_argument('--warning-average', type=float)
     parser.add_argument('--critical-average', type=float)
     args = parser.parse_args()
 
-    p = hpl(args.hpl_args)
+    hpl_dat = tempfile.NamedTemporaryFile()
+    hpl_dat.write(HPL_DAT_TEMPLATE.format(
+        problem_size = args.problem_size,
+        leading_dimension = args.leading_dimension,
+        trials = args.trials,
+        alignment = args.alignment,
+    ))
+    hpl_dat.flush()
+    p = hpl(args.hpl_args, dat_file=hpl_dat.name)
     output, _ = p.communicate()
     summary, residual = parse_hpl_output(output)
 
-    if not output and residual is None:
+    if residual is None:
         print('UNKNOWN: no output')
         sys.exit(NAGIOS_UNKNOWN)
 
@@ -57,8 +79,10 @@ def main ():
     sys.exit(NAGIOS_OK)
 
 
-def hpl (hpl_args):
+def hpl (hpl_args, dat_file=None):
     args = hpl_args[:]
+    if dat_file:
+        args.extend(('-i', dat_file))
     p = subprocess.Popen(args, stdout=subprocess.PIPE)
     return p
 
