@@ -1,6 +1,5 @@
 ## Todo
 
-- support sbench --timeout
 - port STREAM to check_stream
 - port osu_alltoall to check_osu_alltoall
 - port osu_bibw to check_osu_bibw

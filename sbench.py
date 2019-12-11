@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import argparse
+import psutil
 import re
 import subprocess
 import hostlist
@@ -35,6 +36,7 @@ def main ():
     parser.add_argument('--nodes')
     parser.add_argument('--bcast', nargs='?', const=True)
     parser.add_argument('--exclusive', action='store_true')
+    parser.add_argument('--timeout', type=int)
     parser.add_argument('executable')
     parser.add_argument('executable_arguments', nargs='*')
     args = parser.parse_args()
@@ -59,7 +61,7 @@ def main ():
                  chdir=args.chdir, time=args.time, bcast=args.bcast,
                  exclusive=args.exclusive, nodes=args.nodes) for node
             in nodes]
-
+    start_time = time.time()
     completed_jobs = set()
     new_completed_jobs = set()
     ok = set()
@@ -70,7 +72,7 @@ def main ():
         for node, job in zip(nodes, jobs):
             job.poll()
             if job.returncode is not None and job not in completed_jobs:
-                new_completed_jobs.add(job)
+                new_completed_jobs.add((node, job))
                 if job.returncode == NAGIOS_OK:
                     ok.add(node)
                 elif job.returncode == NAGIOS_WARNING:
@@ -79,14 +81,17 @@ def main ():
                     critical.add(node)
                 else:
                     unknown.add(node)
+            elif time.time() - start_time > args.timeout:
+                logging.debug('{0}: {1}'.format(node, 'timeout'))
+                job.terminate()
         if new_completed_jobs:
-            for job in new_completed_jobs:
+            for node, job in new_completed_jobs:
                 for line in job.stderr:
-                    logging.debug(line.rstrip())
+                    logging.debug('{0}: {1}'.format(node, line.rstrip()))
                 for line in job.stdout:
-                    logging.debug(line.rstrip())
+                    logging.debug('{0}: {1}'.format(node, line.rstrip()))
                     break
-            completed_jobs |= new_completed_jobs
+                completed_jobs.add(job)
             new_completed_jobs = set()
         if completed_jobs == set(jobs):
             break
