@@ -57,10 +57,9 @@ def main ():
         assert function not in results
         results[function] = (float(rate), float(avg_time), float(min_time), float(max_time))
     logging.debug(results)
-    validation = VALIDATION_P.search(output)
-    validated = validation is not None
 
-    if not validated:
+    validation = VALIDATION_P.search(output)
+    if validation is None:
         print('CRITICAL: Solution does not validate')
         sys.exit(NAGIOS_CRITICAL)
 
