@@ -31,6 +31,8 @@ def main ():
     parser.add_argument('--account')
     parser.add_argument('--chdir')
     parser.add_argument('--time')
+    parser.add_argument('--nodelist')
+    parser.add_argument('--nodes')
     parser.add_argument('--bcast', nargs='?', const=True)
     parser.add_argument('--exclusive', action='store_true')
     parser.add_argument('executable')
@@ -46,6 +48,8 @@ def main ():
     nodes = set(get_all_nodes(states=args.state))
     if args.partition:
         nodes = nodes & set(get_partition_nodes(args.partition))
+    if args.nodelist:
+        nodes = nodes & set(hostlist.expand_hostlist(args.nodelist))
     nodes = list(sorted(nodes))
     logging.debug('nodes: {0}'.format(len(nodes)))
 
@@ -53,7 +57,8 @@ def main ():
                  partition=args.partition, nodelist=node,
                  ntasks=args.ntasks, account=args.account,
                  chdir=args.chdir, time=args.time, bcast=args.bcast,
-                 exclusive=args.exclusive) for node in nodes]
+                 exclusive=args.exclusive, nodes=args.nodes) for node
+            in nodes]
 
     completed_jobs = set()
     new_completed_jobs = set()
@@ -119,13 +124,17 @@ def get_partition_nodes (partition):
     p.wait()
 
 
-def srun (executable, executable_arguments, partition=None, nodelist=None, ntasks=None,
-          account=None, chdir=None, time=None, bcast=None, exclusive=None, srun_='/usr/bin/srun'):
+def srun (executable, executable_arguments, partition=None,
+          nodelist=None, ntasks=None, account=None, chdir=None,
+          time=None, bcast=None, exclusive=None, nodes=None,
+          srun_='/usr/bin/srun'):
     args = [srun_]
     if partition:
         args.extend(('--partition', partition))
     if nodelist:
         args.extend(('--nodelist', nodelist))
+    if nodes:
+        args.extend(('--nodes', nodes))
     if ntasks:
         args.extend(('--ntasks', ntasks))
     if account:
@@ -138,7 +147,7 @@ def srun (executable, executable_arguments, partition=None, nodelist=None, ntask
         args.append('--bcast')
     elif bcast:
         args.append('--bcast={0}'.format(bcast))
-    elif exclusive:
+    if exclusive:
         args.append('--exclusive')
     args.append(executable)
     args.extend(executable_arguments)
