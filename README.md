@@ -11,7 +11,7 @@ An exploration of a potential replacement for curc-bench
 ## Examples
 
 ```
-sbench.py --state IDLE --state MIXED --account admin --nodes=1 --exclusive --partition sgpu --time=0:10:00 --bcast=/tmp/check_check.py -- checks/check_intel_linpack.py /curc/sw/intel/17.4/compilers_and_libraries_2017.4.196/linux/mkl/benchmarks/linpack/xlinpack_xeon64
+sbench.py --state IDLE --state MIXED --account admin --time=0:10:00 --bcast=/tmp/check_check.py --chdir /tmp -- $(readlink -f checks/check_check.py)
 ```
 
 ### Checks
