@@ -81,7 +81,7 @@ def main ():
                     critical.add(node)
                 else:
                     unknown.add(node)
-            elif time.time() - start_time > args.timeout:
+            elif args.timeout is not None and (time.time() - start_time > args.timeout):
                 logging.debug('{0}: {1}'.format(node, 'timeout'))
                 job.terminate()
         if new_completed_jobs:
