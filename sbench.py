@@ -156,6 +156,7 @@ def srun (executable, executable_arguments, partition=None,
         args.append('--exclusive')
     args.append(executable)
     args.extend(executable_arguments)
+    logging.debug(' '.join(args))
     return subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
