@@ -29,6 +29,9 @@ CMD_FACTORS = ('rate', 'avg-time', 'min-time', 'max-time')
 ARG_FACTORS = ('rate', 'avg_time', 'min_time', 'max_time')
 
 
+logger = logging.getLogger('check_stream')
+
+
 def main ():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true')
@@ -51,12 +54,14 @@ def main ():
 
     p = subprocess.Popen(args.stream_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output, _ = p.communicate()
+    for line in output.splitlines():
+        logger.debug(line.rstrip())
     results = {}
     for match in RESULTS_P.finditer(output):
         function, rate, avg_time, min_time, max_time = match.groups()
         assert function not in results
         results[function] = (float(rate), float(avg_time), float(min_time), float(max_time))
-    logging.debug(results)
+    logger.debug(results)
 
     validation = VALIDATION_P.search(output)
     if validation is None:

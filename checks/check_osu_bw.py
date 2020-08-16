@@ -22,6 +22,9 @@ NAGIOS_CRITICAL = 2
 NAGIOS_UNKNOWN = 3
 
 
+logger = logging.getLogger('check_osu_bw')
+
+
 def main ():
     parser = argparse.ArgumentParser()
     parser.add_argument('--debug', action='store_true')
@@ -39,9 +42,12 @@ def main ():
     output, _ = p.communicate()
 
     mpi_rank = get_mpi_rank()
-    logging.debug('mpi rank: {mpi_rank}'.format(mpi_rank=mpi_rank))
+    logger.debug('mpi rank: {mpi_rank}'.format(mpi_rank=mpi_rank))
     if mpi_rank is not None and mpi_rank != 0:
         sys.exit()
+
+    for line in output.splitlines():
+        logger.debug(line.rstrip())
 
     for match in HEADER_P.finditer(output):
         bandwidth_scale = match.group(1)
@@ -66,7 +72,7 @@ def main ():
             try:
                 bandwidth = averages[test_size]
             except KeyError:
-                logging.warning('size {size} not tested'.format(size=test_size))
+                logger.warning('size {size} not tested'.format(size=test_size))
                 continue
         else:
             bandwidth = averages[best_size]

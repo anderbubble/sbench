@@ -8,5 +8,3 @@
 - help output for check_intel_linpack
 - help output for check_check
 - convert tests to PASS, FAIL, UNKNOwN
-- all checks show raw output in debug
-- disambiguate loggers

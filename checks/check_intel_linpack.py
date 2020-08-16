@@ -7,6 +7,7 @@ from __future__ import print_function
 
 
 import argparse
+import logging
 import re
 import subprocess
 import sys
@@ -17,6 +18,9 @@ NAGIOS_OK = 0
 NAGIOS_WARNING = 1
 NAGIOS_CRITICAL = 2
 NAGIOS_UNKNOWN = 3
+
+
+logger = logging.getLogger('check_intel_hpl')
 
 
 SUMMARY_P = re.compile(r'^([0-9]+) +([0-9]+) +([0-9]+) +([0-9\.]+) +([0-9\.]+) *$')
@@ -36,6 +40,7 @@ HPL_DAT_TEMPLATE = """Intel(R) Optimized LINPACK Benchmark datafile
 def main ():
     parser = argparse.ArgumentParser()
     parser.add_argument('hpl_args', nargs='+')
+    parser.add_argument('--debug', action='store_true')
     parser.add_argument('--problem-size', type=int, default=1000)
     parser.add_argument('--leading-dimension', type=int, default=1000)
     parser.add_argument('--trials', type=int, default=4)
@@ -43,6 +48,12 @@ def main ():
     parser.add_argument('--warning-average', type=float)
     parser.add_argument('--critical-average', type=float)
     args = parser.parse_args()
+
+    if args.debug:
+        log_level = logging.DEBUG
+    else:
+        log_level = None
+    logging.basicConfig(level=log_level)
 
     hpl_dat = tempfile.NamedTemporaryFile()
     hpl_dat.write(HPL_DAT_TEMPLATE.format(
@@ -54,6 +65,8 @@ def main ():
     hpl_dat.flush()
     p = hpl(args.hpl_args, dat_file=hpl_dat.name)
     output, _ = p.communicate()
+    for line in output.splitlines():
+        logger.debug(line.rstrip())
     summary, residual = parse_hpl_output(output)
 
     if residual is None:
