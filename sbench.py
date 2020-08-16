@@ -3,6 +3,7 @@
 from __future__ import print_function
 
 import argparse
+import os
 import psutil
 import re
 import subprocess
@@ -173,7 +174,9 @@ def srun (executable, executable_arguments, partition=None,
     args.append(executable)
     args.extend(executable_arguments)
     logger.debug(' '.join(args))
-    return subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    env = os.environ.copy()
+    env['SLURM_EXIT_ERROR'] = '-1'
+    return subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
 
 
 def scontrol (command, scontrol_='/usr/bin/scontrol'):
