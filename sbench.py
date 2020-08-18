@@ -37,7 +37,7 @@ def main ():
     parser.add_argument('--chdir', help='Specify a directory to use for srun')
     parser.add_argument('--time', help='Specify a job runtime to use for srun')
     parser.add_argument('--nodelist', help='Specify a node list to use for node selection')
-    parser.add_argument('--nodes', type=int, help='Specify the number of nodes to use for srun')
+    parser.add_argument('--nodes', type=int, default=1, help='Specify the number of nodes to use for srun')
     parser.add_argument('--bcast', nargs='?', const=True, help='Copy executable file to compute nodes during srun')
     parser.add_argument('--exclusive', action='store_true', help='Exclusive use of compute nodes during srun')
     parser.add_argument('--timeout', type=int, help='Terminate jobs after a timeout (seconds)')

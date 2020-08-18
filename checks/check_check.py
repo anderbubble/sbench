@@ -15,10 +15,10 @@ RETCODE = {
 
 
 def main ():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description='No-op tester with specified or random returncode.')
     retcode_choices = RETCODE.keys() + ['random']
-    parser.add_argument('--retcode', choices=retcode_choices, default='random')
-    parser.add_argument('--sleep', type=int)
+    parser.add_argument('--retcode', choices=retcode_choices, default='random', help='Specify the return code to use (default: random)')
+    parser.add_argument('--sleep', type=int, metavar='SECONDS', help='Sleep SECONDS before returning')
     args = parser.parse_args()
     if args.sleep is not None:
         time.sleep(args.sleep)
