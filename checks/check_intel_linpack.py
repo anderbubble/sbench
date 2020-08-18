@@ -14,10 +14,9 @@ import sys
 import tempfile
 
 
-NAGIOS_OK = 0
-NAGIOS_WARNING = 1
-NAGIOS_CRITICAL = 2
-NAGIOS_UNKNOWN = 3
+PASS = 0
+FAIL = 1
+UNKNOWN = -1
 
 
 logger = logging.getLogger('check_intel_hpl')
@@ -45,8 +44,7 @@ def main ():
     parser.add_argument('--leading-dimension', type=int, default=1000)
     parser.add_argument('--trials', type=int, default=4)
     parser.add_argument('--alignment', type=int, metavar='KBytes', default=4)
-    parser.add_argument('--warning-average', type=float)
-    parser.add_argument('--critical-average', type=float)
+    parser.add_argument('--average', type=float)
     args = parser.parse_args()
 
     if args.debug:
@@ -71,24 +69,20 @@ def main ():
 
     if residual is None:
         print('UNKNOWN: no output')
-        sys.exit(NAGIOS_UNKNOWN)
+        sys.exit(UNKNOWN)
 
     average = sum(average for (average, maximal) in summary.itervalues()) / (1.0 * len(summary.values()))
 
     if residual.lower() != 'passed':
-        print('CRITICAL: Residual checks {0}'.format(residual))
-        sys.exit(NAGIOS_CRITICAL)
+        print('FAIL: Residual checks {0}'.format(residual))
+        sys.exit(FAIL)
 
-    if args.critical_average is not None and average < args.critical_average:
-        print('CRITICAL: Average {0} < {1}'.format(average, args.critical_average))
-        sys.exit(NAGIOS_CRITICAL)
+    if args.average is not None and average < args.average:
+        print('FAIL: Average {0} < {1}'.format(average, args.average))
+        sys.exit(FAIL)
 
-    if args.warning_average is not None and average < args.warning_average:
-        print('WARNING: Average {0} < {1}'.format(average, args.warning_average))
-        sys.exit(NAGIOS_CRITICAL)
-
-    print('OK: Average {0}'.format(average))
-    sys.exit(NAGIOS_OK)
+    print('PASS: Average {0}'.format(average))
+    sys.exit(PASS)
 
 
 def hpl (hpl_args, dat_file=None):

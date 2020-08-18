@@ -16,12 +16,10 @@ import sys
 RESULTS_P = re.compile(r'^(Copy|Scale|Add|Triad): +([0-9\.]+) +([0-9\.]+) +([0-9\.]+) +([0-9\.]+)$', flags=re.MULTILINE)
 VALIDATION_P = re.compile(r'Solution Validates')
 
-NAGIOS_OK = 0
-NAGIOS_WARNING = 1
-NAGIOS_CRITICAL = 2
-NAGIOS_UNKNOWN = 3
+PASS = 0
+FAIL = 1
+UNKNOWN = -1
 
-THRESHOLDS = ('warning', 'critical')
 CMD_FUNCTIONS = ('copy', 'scale', 'add', 'triad')
 ARG_FUNCTIONS = CMD_FUNCTIONS
 RESULT_FUNCTIONS = [function.capitalize() for function in ARG_FUNCTIONS]
@@ -38,12 +36,11 @@ def main ():
     parser.add_argument('stream_args', nargs='+')
     for function in CMD_FUNCTIONS:
         for factor in CMD_FACTORS:
-            for threshold in THRESHOLDS:
-                if factor == 'rate':
-                    metavar = 'MB/s'
-                else:
-                    metavar = 'SECONDS'
-                parser.add_argument('--{0}-{1}-{2}'.format(function, factor, threshold), type=float, metavar=metavar)
+            if factor == 'rate':
+                metavar = 'MB/s'
+            else:
+                metavar = 'SECONDS'
+            parser.add_argument('--{0}-{1}'.format(function, factor), type=float, metavar=metavar)
     args = parser.parse_args()
 
     if args.debug:
@@ -61,39 +58,31 @@ def main ():
         function, rate, avg_time, min_time, max_time = match.groups()
         assert function not in results
         results[function] = (float(rate), float(avg_time), float(min_time), float(max_time))
-    logger.debug(results)
+    logger.debug('parsed:{0}'.format(results))
 
     validation = VALIDATION_P.search(output)
     if validation is None:
-        print('CRITICAL: Solution does not validate')
-        sys.exit(NAGIOS_CRITICAL)
+        print('FAIL: Solution does not validate')
+        sys.exit(FAIL)
 
-    for threshold in THRESHOLDS:
-        for arg_function, result_function in zip(ARG_FUNCTIONS, RESULT_FUNCTIONS):
-            for factor in ARG_FACTORS:
-                threshold_value = getattr(args, '{0}_{1}_{2}'.format(arg_function, factor, threshold))
-                if threshold_value is None:
-                    continue
-                result_value = get_value(results, result_function, factor)
-                if factor == 'rate' and result_value < threshold_value:
-                    print('{0}: {1} {2} {3} < {4}'.format(threshold.upper(), result_function, factor, result_value, threshold_value))
-                    exit_from_threshold(threshold)
+    for arg_function, result_function in zip(ARG_FUNCTIONS, RESULT_FUNCTIONS):
+        for factor in ARG_FACTORS:
+            threshold_value = getattr(args, '{0}_{1}'.format(arg_function, factor))
+            if threshold_value is None:
+                continue
+            result_value = get_value(results, result_function, factor)
+            if factor == 'rate':
+                if result_value < threshold_value:
+                    print('FAIL: {0} {1} {2} < {3}'.format(result_function, factor, result_value, threshold_value))
+                    sys.exit(FAIL)
 
-                elif result_value > threshold_value:
-                    print('{0}: {1} {2} {3} > {4}'.format(threshold.upper(), result_function, factor, result_value, threshold_value))
-                    exit_from_threshold(threshold)
+            else:
+                if result_value > threshold_value:
+                    print('FAIL: {0} {1} {2} > {3}'.format(result_function, factor, result_value, threshold_value))
+                    sys.exit(FAIL)
 
-    print('OK: {0}'.format(validation.group(0)))
-    sys.exit(NAGIOS_OK)
-
-
-def exit_from_threshold (threshold):
-    if threshold == 'critical':
-        sys.exit(NAGIOS_CRITICAL)
-    elif threshold == 'warning':
-        sys.exit(NAGIOS_WARNING)
-    else:
-        sys.exit(NAGIOS_UNKNOWN)
+    print('PASS: {0}'.format(validation.group(0)))
+    sys.exit(PASS)
 
 
 def get_value (results, function, factor):

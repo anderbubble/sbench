@@ -16,10 +16,9 @@ HEADER_P = re.compile(r'^ *# *Size *Bandwidth \((.*)\) *$', flags=re.MULTILINE)
 RESULTS_P = re.compile(r'^ *([0-9]+) *([0-9\.]+) *$', flags=re.MULTILINE)
 
 
-NAGIOS_OK = 0
-NAGIOS_WARNING = 1
-NAGIOS_CRITICAL = 2
-NAGIOS_UNKNOWN = 3
+PASS = 0
+FAIL = 1
+UNKNOWN = -1
 
 
 logger = logging.getLogger('check_osu_bw')
@@ -78,24 +77,24 @@ def main ():
             bandwidth = averages[best_size]
 
         if bandwidth < test_bandwidth:
-            print('CRITICAL: size={size} bandwidth {bandwidth} < {test_bandwidth} ({bandwidth_scale})'.format(
+            print('FAIL: size={size} bandwidth {bandwidth} < {test_bandwidth} ({bandwidth_scale})'.format(
                 size=test_size if test_size is not None else best_size,
                 bandwidth=bandwidth,
                 test_bandwidth=test_bandwidth,
                 bandwidth_scale=bandwidth_scale,
             ))
-            sys.exit(NAGIOS_CRITICAL)
+            sys.exit(FAIL)
 
     if not averages:
         print('UNKNOWN: no test results')
-        sys.exit(NAGIOS_UNKNOWN)
+        sys.exit(UNKNOWN)
 
-    print('OK: size={size} bandwidth={bandwidth} ({bandwidth_scale})'.format(
+    print('PASS: size={size} bandwidth={bandwidth} ({bandwidth_scale})'.format(
         size=best_size,
         bandwidth=averages[best_size],
         bandwidth_scale=bandwidth_scale,
     ))
-    sys.exit(NAGIOS_OK)
+    sys.exit(PASS)
 
 
 def mean (values):

@@ -18,10 +18,8 @@ NODES_P = re.compile(r' Nodes=([^ \n]+)')
 
 POLLING_INTERVAL=2
 
-NAGIOS_OK = 0
-NAGIOS_WARNING = 1
-NAGIOS_CRITICAL = 2
-NAGIOS_UNKNOWN = 3
+PASS = 0
+FAIL = 1
 
 
 logger = logging.getLogger('sbench')
@@ -29,7 +27,7 @@ logger = logging.getLogger('sbench')
 
 def main ():
     parser = argparse.ArgumentParser(description='Launch groups of test scripts with srun.')
-    parser.add_argument('--debug', action='store_true', help='Enable debug logging (default: info)')
+    parser.add_argument('--debug', action='store_true', help='Enable debug loggibng (default: info)')
     parser.add_argument('--partition', help='Specify a partition for node selection and job submission')
     parser.add_argument('--mpi', help='Enable MPI support for srun')
     parser.add_argument('--ntasks', help='Specify the number of tasks to run for each job')
@@ -72,21 +70,18 @@ def main ():
     start_time = time.time()
     completed_jobs = set()
     new_completed_jobs = []
-    ok = set()
-    warning = set()
-    critical = set()
+    pass_ = set()
+    fail = set()
     unknown = set()
     while True:
         for nodelist, job in jobs:
             job.poll()
             if job.returncode is not None and job not in completed_jobs:
                 new_completed_jobs.append((nodelist, job))
-                if job.returncode == NAGIOS_OK:
-                    ok |= set(nodelist)
-                elif job.returncode == NAGIOS_WARNING:
-                    warning |= set(nodelist)
-                elif job.returncode == NAGIOS_CRITICAL:
-                    critical |= set(nodelist)
+                if job.returncode == PASS:
+                    pass_ |= set(nodelist)
+                elif job.returncode == FAIL:
+                    fail |= set(nodelist)
                 else:
                     unknown |= set(nodelist)
             elif args.timeout is not None and (time.time() - start_time > args.timeout):
@@ -107,12 +102,10 @@ def main ():
             time.sleep(POLLING_INTERVAL)
             continue
 
-    if ok:
-        print('ok:', hostlist.collect_hostlist(ok))
-    if warning:
-        print('warning:', hostlist.collect_hostlist(warning))
-    if critical:
-        print('critical:', hostlist.collect_hostlist(critical))
+    if pass_:
+        print('pass:', hostlist.collect_hostlist(pass_))
+    if fail:
+        print('fail:', hostlist.collect_hostlist(fail))
     if unknown:
         print('unknown:', hostlist.collect_hostlist(unknown))
 
